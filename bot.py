@@ -293,20 +293,20 @@ def reply(message):
                 tp2 = entry + (atr * 2.5)
                 tp3 = entry + (atr * 4.0)
                 tp4 = entry + (atr * 6.0)
-                else:
+        else:
                 sl = entry + (atr * 1.5)
                 tp1 = entry - (atr * 1.5)
                 tp2 = entry - (atr * 2.5)
                 tp3 = entry - (atr * 4.0)
-                tp4 = entry - (atr * 6.0)
+                tp4 = entry - (atr * 6.0)  
         else:
-            if side_key == "buy":
+        if side_key == "buy":
                 sl = entry - (atr * 1.2)
                 tp1 = entry + (atr * 1.2)
                 tp2 = entry + (atr * 2.0)
                 tp3 = entry + (atr * 3.0)
                 tp4 = entry + (atr * 4.5)
-            else:
+        else:
                 sl = entry + (atr * 1.2)
                 tp1 = entry - (atr * 1.2)
                 tp2 = entry - (atr * 2.0)
