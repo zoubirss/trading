@@ -298,9 +298,9 @@ def reply(message):
                 tp1 = entry - (atr * 1.5)
                 tp2 = entry - (atr * 2.5)
                 tp3 = entry - (atr * 4.0)
-                tp4 = entry - (atr * 6.0)  
-        else:
-        if side_key == "buy":
+                tp4 = entry - (atr * 6.0) 
+        if not strong:
+            if side_key == "buy":
                 sl = entry - (atr * 1.2)
                 tp1 = entry + (atr * 1.2)
                 tp2 = entry + (atr * 2.0)
