@@ -1,0 +1,8 @@
+pyTelegramBotAPI>=4.20.0
+ohlcv-router
+python-binance
+pandas
+mplfinance
+matplotlib
+requests
+numpy
