@@ -384,7 +384,7 @@ def reply(message):
         y_step = 0.045
         labels = [
             (t["res_lbl"] + ": " + str(round(high, 6)), "#00008B"),
-[14-09-2026 16:16] youcef limane: (t["tp_lbl"] + " 4: " + str(round(tp4, 6)), "#9467bd"),
+            (t["tp_lbl"] + " 4: " + str(round(tp4, 6)), "#9467bd"),
             (t["tp_lbl"] + " 3: " + str(round(tp3, 6)), "#2ca02c"),
             (t["tp_lbl"] + " 2: " + str(round(tp2, 6)), "#2ca02c"),
             (t["tp_lbl"] + " 1: " + str(round(tp1, 6)), "#2ca02c"),
