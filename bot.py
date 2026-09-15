@@ -3,7 +3,6 @@ import asyncio
 import requests
 from ohlcv_router import fetch
 import telebot
-from binance import Client
 import pandas as pd
 import numpy as np
 import mplfinance as mpf
@@ -13,7 +12,6 @@ import matplotlib.pyplot as plt
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "ضع_التوكن_هنا").strip()
 bot = telebot.TeleBot(BOT_TOKEN)
-client = Client()
 ADMIN_ID = 7002618091
 
 LANG = {
@@ -65,7 +63,6 @@ def find_alpha_symbol(user_input):
                 else:
                     return "ALPHA_" + alpha_id + "USDT"
     return None
-
 def dex_search_symbol(query):
     try:
         url = "https://api.dexpaprika.com/search"
@@ -105,16 +102,7 @@ def find_symbol(user_input):
     user_input = user_input.upper().strip()
     base = user_input.replace("USDT", "").strip()
 
-    candidates = [user_input] if user_input.endswith("USDT") else []
-    candidates += [base + "USDT", base + "USDC", base + "BTC", base]
-    for c in candidates:
-        try:
-            info = client.get_symbol_info(c)
-            if info is not None:
-                return ("CEX", c)
-        except:
-            continue
-
+    # Binance Alpha
     try:
         alpha_sym = find_alpha_symbol(user_input)
         if alpha_sym:
@@ -122,6 +110,7 @@ def find_symbol(user_input):
     except:
         pass
 
+    # DexPaprika
     try:
         dex_info = dex_search_symbol(base)
         if dex_info and dex_info.get("network") and dex_info.get("pool"):
@@ -129,7 +118,8 @@ def find_symbol(user_input):
     except:
         pass
 
-    return None
+    # Binance CEX → نستخدم ohlcv-router للتحقق
+    return ("CEX", base + "USDT")
 
 def get_data(symbol_info, interval="4h", limit=200):
     source, sym = symbol_info
@@ -157,6 +147,7 @@ def get_data(symbol_info, interval="4h", limit=200):
     if source == "DEX":
         return dex_get_ohlcv(sym["network"], sym["pool"], limit)
 
+    # CEX → ohlcv-router أولاً
     try:
         candles = asyncio.run(fetch(sym, interval=interval, limit=limit))
         if candles:
@@ -172,20 +163,8 @@ def get_data(symbol_info, interval="4h", limit=200):
             return df
     except Exception:
         pass
-    try:
-        candles = client.get_klines(symbol=sym, interval=interval, limit=limit)
-        df = pd.DataFrame(candles, columns=[
-            "time","open","high","low","close","volume",
-            "close_time","quote_vol","trades","taker_base","taker_quote","ignore"
-        ])
-        for c in ["open","high","low","close","volume"]:
-            df[c] = df[c].astype(float)
-        df["time"] = pd.to_datetime(df["time"], unit="ms")
-        df.set_index("time", inplace=True)
-        return df
-    except Exception:
-        pass
 
+    # CoinGecko احتياطي
     try:
         base = sym.replace("USDT", "")
         url = "https://api.coingecko.com/api/v3/coins/" + base.lower() + "/ohlc"
@@ -199,7 +178,6 @@ def get_data(symbol_info, interval="4h", limit=200):
             return df
     except Exception:
         pass
-
     return None
 
 def calc_rsi(df, period=14):
@@ -315,7 +293,7 @@ def reply(message):
                 tp2 = entry + (atr * 2.5)
                 tp3 = entry + (atr * 4.0)
                 tp4 = entry + (atr * 6.0)
-            else:
+                else:
                 sl = entry + (atr * 1.5)
                 tp1 = entry - (atr * 1.5)
                 tp2 = entry - (atr * 2.5)
@@ -402,7 +380,6 @@ def reply(message):
 
         fig.savefig(filename, dpi=110, bbox_inches="tight", facecolor="white")
         plt.close(fig)
-
         txt = t["report"] + " - " + safe_name + "\n"
         txt += t["frame"] + "\n"
         txt += t[side_key] + "\n\n"
@@ -437,28 +414,33 @@ def reply(message):
             else:
                 success = 70
 
-            try:
-                ticker_24h = client.get_ticker(symbol=symbol_info[1])
-                liquidity = float(ticker_24h["quoteVolume"])
-                liquidity_txt = "{:,.0f}".format(liquidity)
-            except:
-                liquidity = 0
-                liquidity_txt = "N/A"
+            # السيولة والحيتان - فقط لعملات CEX
+            if symbol_info[0] == "CEX":
+                try:
+                    ticker_24h = client.get_ticker(symbol=symbol_info[1])
+                    liquidity = float(ticker_24h["quoteVolume"])
+                    liquidity_txt = "{:,.0f}".format(liquidity)
+                except:
+                    liquidity = 0
+                    liquidity_txt = "N/A"
 
-            try:
-                trades = client.get_recent_trades(symbol=symbol_info[1], limit=500)
-                avg_trade = liquidity / 100000 if liquidity > 0 else 1
-                big_trades = [tr for tr in trades if float(tr["quoteQty"]) > avg_trade * 1.5]
-                whale_count = len(big_trades)
-            except:
-                whale_count = 0
+                try:
+                    trades = client.get_recent_trades(symbol=symbol_info[1], limit=500)
+                    avg_trade = liquidity / 100000 if liquidity > 0 else 1
+                    big_trades = [tr for tr in trades if float(tr["quoteQty"]) > avg_trade * 1.5]
+                    whale_count = len(big_trades)
+                except:
+                    whale_count = 0
+            else:
+                liquidity_txt = "N/A (DEX/Alpha)"
+                whale_count = "N/A"
 
             txt += "\n\n━━━━━━━━━━━━━━\n"
             txt += "🔒 ADMIN ONLY\n"
             txt += "━━━━━━━━━━━━━━\n"
             txt += "📊 نسبة النجاح: " + str(success) + "%\n"
-            txt += "💰 السيولة (24h): " + liquidity_txt + " USDT\n"
-            txt += "🐋 رادار الحيتان: " + str(whale_count) + " صفقة كبيرة"
+            txt += "💰 السيولة (24h): " + str(liquidity_txt) + " USDT\n"
+            txt += "🐋 رادار الحيتان: " + str(whale_count)
 
         with open(filename, "rb") as photo:
             bot.send_photo(message.chat.id, photo, caption=txt)
