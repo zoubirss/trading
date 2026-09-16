@@ -98,25 +98,6 @@ def dex_get_ohlcv(network, pool, hours=200):
     except Exception:
         return None
 
-def find_symbol(user_input):
-    user_input = user_input.upper().strip()
-    base = user_input.replace("USDT", "").strip()
-
-    try:
-        alpha_sym = find_alpha_symbol(user_input)
-        if alpha_sym:
-            return ("ALPHA", alpha_sym)
-    except:
-        pass
-
-    try:
-        dex_info = dex_search_symbol(base)
-        if dex_info and dex_info.get("network") and dex_info.get("pool"):
-            return ("DEX", dex_info)
-    except:
-        pass
-
-    return ("CEX", base + "USDT")
 def get_coingecko_onchain(symbol_name, interval="4h", limit=200):
     try:
         search_url = "https://api.coingecko.com/api/v3/onchain/search/pools"
@@ -142,6 +123,12 @@ def get_coingecko_onchain(symbol_name, interval="4h", limit=200):
         return df
     except Exception:
         return None
+
+def find_symbol(user_input):
+    user_input = user_input.upper().strip()
+    base = user_input.replace("USDT", "").strip()
+
+    return ("CEX", base + "USDT")
 
 def get_data(symbol_info, interval="4h", limit=200):
     source, sym = symbol_info
@@ -213,7 +200,24 @@ def get_data(symbol_info, interval="4h", limit=200):
     except Exception:
         pass
 
+    try:
+        candles = asyncio.run(fetch(sym, interval=interval, limit=limit))
+        if candles:
+            df = pd.DataFrame([{
+                "time": pd.to_datetime(c.time),
+                "open": float(c.open),
+                "high": float(c.high),
+                "low": float(c.low),
+                "close": float(c.close),
+                "volume": float(c.volume)
+            } for c in candles])
+            df.set_index("time", inplace=True)
+            return df
+    except Exception:
+        pass
+
     return None
+
 def calc_rsi(df, period=14):
     delta = df["close"].diff()
     gain = delta.where(delta > 0, 0).rolling(period).mean()
@@ -260,8 +264,7 @@ def start(message):
     if lang not in LANG:
         lang = "en"
     bot.reply_to(message, LANG[lang]["ask"])
-
-@bot.message_handler(func=lambda m: True)
+    @bot.message_handler(func=lambda m: True)
 def reply(message):
     if message.text and message.text.lower().strip() in ['/start', 'start', 'help', 'بدأ', '/help']:
         lang = detect_lang(message.from_user.language_code or "en")
@@ -371,7 +374,6 @@ def reply(message):
 
         safe_name = str(symbol_info[1]).replace("/", "_").replace(":", "_")
         filename = "chart_" + safe_name + ".png"
-
         mc = mpf.make_marketcolors(up="#26a69a", down="#ef5350", edge="inherit", wick="inherit", volume="in")
         style = mpf.make_mpf_style(
             marketcolors=mc, gridstyle=":", gridcolor="#dddddd",
@@ -414,6 +416,7 @@ def reply(message):
 
         fig.savefig(filename, dpi=110, bbox_inches="tight", facecolor="white")
         plt.close(fig)
+
         txt = t["report"] + " - " + safe_name + "\n"
         txt += t["frame"] + "\n"
         txt += t[side_key] + "\n\n"
@@ -459,5 +462,4 @@ def reply(message):
             bot.send_photo(message.chat.id, photo, caption=txt)
     except Exception as e:
         bot.reply_to(message, "Error: " + str(e)[:200])
-
-bot.infinity_polling()
+        bot.infinity_polling()
