@@ -1,9 +1,6 @@
-pyTelegramBotAPI>=4.20.0
-ohlcv-router
-python-binance
+pyTelegramBotAPI
 pandas
+numpy
 mplfinance
 matplotlib
 requests
-numpy
-yfinance
