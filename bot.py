@@ -1,4 +1,4 @@
-import os
+Aimport os
 import asyncio
 import requests
 from ohlcv_router import fetch
@@ -117,84 +117,44 @@ def find_symbol(user_input):
         pass
 
     return ("CEX", base + "USDT")
+def get_coingecko_onchain(symbol_name, interval="4h", limit=200):
+    """
+    جلب شموع 4 ساعات من CoinGecko On-Chain API لعملات Alpha/Web3.
+    """
+    try:
+        # 1. البحث عن التجمع (Pool) الأكثر سيولة
+        search_url = "https://api.coingecko.com/api/v3/onchain/search/pools"
+        search_params = {"query": symbol_name}
+        search_resp = requests.get(search_url, params=search_params, timeout=15).json()
 
-def get_data(symbol_info, interval="4h", limit=200):
-    source, sym = symbol_info
+        pools = search_resp.get("data", [])
+        if not pools:
+            return None
 
-    if source == "ALPHA":
-        try:
-            url = "https://www.binance.com/bapi/defi/v1/public/alpha-trade/klines"
-            params = {"symbol": sym, "interval": interval, "limit": limit}
-            resp = requests.get(url, params=params, timeout=10)
-            data = resp.json().get("data", [])
-            if data:
-                df = pd.DataFrame(data, columns=[
-                    "time","open","high","low","close","volume",
-                    "close_time","quote_vol","trades","taker_base","taker_quote","ignore"
-                ])
-                for c in ["open","high","low","close","volume"]:
-                    df[c] = df[c].astype(float)
-                df["time"] = pd.to_datetime(df["time"], unit="ms")
-                df.set_index("time", inplace=True)
-                return df
-        except Exception:
-            pass
+        # اختيار التجمع الأكثر سيولة (liquidity_usd)
+        best_pool = max(pools, key=lambda p: p.get("attributes", {}).get("liquidity_usd", 0))
+        network = best_pool["relationships"]["network"]["data"]["id"]
+        pool_address = best_pool["attributes"]["address"]
+
+        # 2. جلب شموع 4 ساعات (hourly مع aggregate=4)
+        ohlcv_url = f"https://api.coingecko.com/api/v3/onchain/networks/{network}/pools/{pool_address}/ohlcv/hour"
+        ohlcv_params = {"aggregate": "4", "limit": str(limit), "currency": "usd"}
+        ohlcv_resp = requests.get(ohlcv_url, params=ohlcv_params, timeout=15).json()
+
+        ohlcv_list = ohlcv_resp.get("data", {}).get("attributes", {}).get("ohlcv_list", [])
+        if not ohlcv_list:
+            return None
+
+        # 3. تحويل البيانات إلى DataFrame
+        df = pd.DataFrame(ohlcv_list, columns=["time", "open", "high", "low", "close", "volume"])
+        for c in ["open", "high", "low", "close", "volume"]:
+            df[c] = df[c].astype(float)
+        df["time"] = pd.to_datetime(df["time"], unit="s")
+        df.set_index("time", inplace=True)
+
+        return df
+    except Exception:
         return None
-
-    if source == "DEX":
-        return dex_get_ohlcv(sym["network"], sym["pool"], limit)
-
-    # 1. yfinance (الأقوى - يدعم كل العملات الرئيسية)
-    try:
-        import yfinance as yf
-        base = sym.replace("USDT", "").replace("USDC", "").replace("BTC", "")
-        yf_sym = base + "-USD"
-        ticker = yf.Ticker(yf_sym)
-        hist = ticker.history(period="60d", interval="1h")
-        if len(hist) >= 20:
-            df = hist[["Open","High","Low","Close","Volume"]].copy()
-            df.columns = ["open","high","low","close","volume"]
-            df = df.resample("4h").agg({
-                "open":"first","high":"max","low":"min","close":"last","volume":"sum"
-            }).dropna()
-            if len(df) >= 20:
-                return df
-    except Exception:
-        pass
-
-    # 2. CoinGecko (احتياطي)
-    try:
-        base = sym.replace("USDT", "").replace("USDC", "")
-        url = "https://api.coingecko.com/api/v3/coins/" + base.lower() + "/ohlc"
-        params = {"vs_currency": "usd", "days": "30"}
-        resp = requests.get(url, params=params, timeout=10).json()
-        if resp and len(resp) >= 20:
-            df = pd.DataFrame(resp, columns=["time","open","high","low","close"])
-            df["volume"] = 0
-            df["time"] = pd.to_datetime(df["time"], unit="ms")
-            df.set_index("time", inplace=True)
-            return df
-    except Exception:
-        pass
-
-    # 3. ohlcv-router
-    try:
-        candles = asyncio.run(fetch(sym, interval=interval, limit=limit))
-        if candles:
-            df = pd.DataFrame([{
-                "time": pd.to_datetime(c.time),
-                "open": float(c.open),
-                "high": float(c.high),
-                "low": float(c.low),
-                "close": float(c.close),
-                "volume": float(c.volume)
-            } for c in candles])
-            df.set_index("time", inplace=True)
-            return df
-    except Exception:
-        pass
-
-    return None
 def calc_rsi(df, period=14):
     delta = df["close"].diff()
     gain = delta.where(delta > 0, 0).rolling(period).mean()
