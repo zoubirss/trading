@@ -287,7 +287,7 @@ def reply(message):
                 tp2 = entry + (atr * 2.5)
                 tp3 = entry + (atr * 4.0)
                 tp4 = entry + (atr * 6.0)
-                else:
+        else:
                 sl = entry + (atr * 1.5)
                 tp1 = entry - (atr * 1.5)
                 tp2 = entry - (atr * 2.5)
