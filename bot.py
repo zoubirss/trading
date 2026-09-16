@@ -147,7 +147,22 @@ def get_data(symbol_info, interval="4h", limit=200):
     if source == "DEX":
         return dex_get_ohlcv(sym["network"], sym["pool"], limit)
 
-    # CEX → ohlcv-router أولاً
+    # CoinGecko أولاً (لا يحجب Railway)
+    try:
+        base = sym.replace("USDT", "")
+        url = "https://api.coingecko.com/api/v3/coins/" + base.lower() + "/ohlc"
+        params = {"vs_currency": "usd", "days": "30"}
+        resp = requests.get(url, params=params, timeout=10).json()
+        if resp:
+            df = pd.DataFrame(resp, columns=["time","open","high","low","close"])
+            df["volume"] = 0
+            df["time"] = pd.to_datetime(df["time"], unit="ms")
+            df.set_index("time", inplace=True)
+            return df
+    except Exception:
+        pass
+
+    # ohlcv-router ثانياً
     try:
         candles = asyncio.run(fetch(sym, interval=interval, limit=limit))
         if candles:
@@ -164,22 +179,7 @@ def get_data(symbol_info, interval="4h", limit=200):
     except Exception:
         pass
 
-    # CoinGecko احتياطي
-    try:
-        base = sym.replace("USDT", "")
-        url = "https://api.coingecko.com/api/v3/coins/" + base.lower() + "/ohlc"
-        params = {"vs_currency": "usd", "days": "30"}
-        resp = requests.get(url, params=params, timeout=10).json()
-        if resp:
-            df = pd.DataFrame(resp, columns=["time","open","high","low","close"])
-            df["volume"] = 0
-            df["time"] = pd.to_datetime(df["time"], unit="ms")
-            df.set_index("time", inplace=True)
-            return df
-    except Exception:
-        pass
     return None
-
 def calc_rsi(df, period=14):
     delta = df["close"].diff()
     gain = delta.where(delta > 0, 0).rolling(period).mean()
