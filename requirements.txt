@@ -6,3 +6,4 @@ mplfinance
 matplotlib
 requests
 numpy
+yfinance
