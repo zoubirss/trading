@@ -15,9 +15,9 @@ bot = telebot.TeleBot(BOT_TOKEN)
 ADMIN_ID = 7002618091
 
 LANG = {
-    "ar": {"report":"📊 تقرير التحليل الفني","frame":"⏰ فريم: 4 ساعات","buy":"🟢 شراء","sell":"🔴 بيع","entry":"💰 الدخول","tp":"🎯 الهدف","tp4":"🚀 الهدف 4","sl":"🔴 الستوب","rsi":"📈 RSI","ask":"أرسل عملة مثل BTC","error":"⚠️ ما لقيت العملة","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 نسخة تجريبية. للاشتراك في VIP (كل الأهداف + رادار الحيتان + إشارات أقوى)، تواصل معنا."},
-    "en": {"report":"📊 Technical Analysis","frame":"⏰ Timeframe: 4H","buy":"🟢 BUY","sell":"🔴 SELL","entry":"💰 Entry","tp":"🎯 Target","tp4":"🚀 Target 4","sl":"🔴 Stop Loss","rsi":"📈 RSI","ask":"Send a coin like BTC","error":"⚠️ Coin not found","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 Trial version. For VIP (all targets + whale radar + stronger signals), contact us."},
-    "zh": {"report":"📊 技术分析报告","frame":"⏰ 时间框架: 4小时","buy":"🟢 买入","sell":"🔴 卖出","entry":"💰 入场","tp":"🎯 目标","tp4":"🚀 目标 4","sl":"🔴 止损","rsi":"📈 RSI","ask":"发送币种名称","error":"⚠️ 未找到该币种","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 试用版。VIP可获得所有目标+鲸鱼雷达。"},
+    "ar": {"report":"📊 تقرير التحليل الفني","frame":"⏰ فريم: 4 ساعات","buy":"🟢 شراء","sell":"🔴 بيع","entry":"💰 الدخول","tp":"🎯 الهدف","tp4":"🚀 الهدف 4","sl":"🔴 الستوب","rsi":"📈 RSI","ask":"أرسل عملة مثل BTC","error":"⚠️ ما لقيت العملة","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 نسخة تجريبية. للاشتراك في VIP (كل الأهداف + إشارات أقوى)، تواصل معنا."},
+    "en": {"report":"📊 Technical Analysis","frame":"⏰ Timeframe: 4H","buy":"🟢 BUY","sell":"🔴 SELL","entry":"💰 Entry","tp":"🎯 Target","tp4":"🚀 Target 4","sl":"🔴 Stop Loss","rsi":"📈 RSI","ask":"Send a coin like BTC","error":"⚠️ Coin not found","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 Trial version. For VIP, contact us."},
+    "zh": {"report":"📊 技术分析报告","frame":"⏰ 时间框架: 4小时","buy":"🟢 买入","sell":"🔴 卖出","entry":"💰 入场","tp":"🎯 目标","tp4":"🚀 目标 4","sl":"🔴 止损","rsi":"📈 RSI","ask":"发送币种名称","error":"⚠️ 未找到该币种","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 试用版。VIP可获得所有目标。"},
     "hi": {"report":"📊 तकनीकी विश्लेषण","frame":"⏰ समय सीमा: 4 घंटे","buy":"🟢 खरीदें","sell":"🔴 बेचें","entry":"💰 प्रवेश","tp":"🎯 लक्ष्य","tp4":"🚀 लक्ष्य 4","sl":"🔴 स्टॉप लॉस","rsi":"📈 RSI","ask":"सिक्का नाम भेजें","error":"⚠️ सिक्का नहीं मिला","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 ट्रायल। VIP के लिए संपर्क करें।"},
     "tr": {"report":"📊 Teknik Analiz","frame":"⏰ Zaman: 4H","buy":"🟢 ALIŞ","sell":"🔴 SATIŞ","entry":"💰 Giriş","tp":"🎯 Hedef","tp4":"🚀 Hedef 4","sl":"🔴 Stop Loss","rsi":"📈 RSI","ask":"BTC gibi coin gönderin","error":"⚠️ Coin bulunamadı","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 Deneme sürümü. VIP için iletişime geçin."},
     "es": {"report":"📊 Análisis Técnico","frame":"⏰ Marco: 4H","buy":"🟢 COMPRA","sell":"🔴 VENTA","entry":"💰 Entrada","tp":"🎯 Objetivo","tp4":"🚀 Objetivo 4","sl":"🔴 Stop Loss","rsi":"📈 RSI","ask":"Envía una moneda como BTC","error":"⚠️ Moneda no encontrada","entry_lbl":"Entry","tp_lbl":"Target","sl_lbl":"Stop Loss","res_lbl":"Resistance","sup_lbl":"Support","vip_msg":"\n\n🔒 Versión de prueba. Para VIP, contáctanos."},
@@ -102,7 +102,6 @@ def find_symbol(user_input):
     user_input = user_input.upper().strip()
     base = user_input.replace("USDT", "").strip()
 
-    # Binance Alpha
     try:
         alpha_sym = find_alpha_symbol(user_input)
         if alpha_sym:
@@ -110,7 +109,6 @@ def find_symbol(user_input):
     except:
         pass
 
-    # DexPaprika
     try:
         dex_info = dex_search_symbol(base)
         if dex_info and dex_info.get("network") and dex_info.get("pool"):
@@ -118,7 +116,6 @@ def find_symbol(user_input):
     except:
         pass
 
-    # Binance CEX → نستخدم ohlcv-router للتحقق
     return ("CEX", base + "USDT")
 
 def get_data(symbol_info, interval="4h", limit=200):
@@ -149,11 +146,11 @@ def get_data(symbol_info, interval="4h", limit=200):
 
     # CoinGecko أولاً (لا يحجب Railway)
     try:
-        base = sym.replace("USDT", "")
+        base = sym.replace("USDT", "").replace("USDC", "")
         url = "https://api.coingecko.com/api/v3/coins/" + base.lower() + "/ohlc"
         params = {"vs_currency": "usd", "days": "30"}
         resp = requests.get(url, params=params, timeout=10).json()
-        if resp:
+        if resp and len(resp) >= 20:
             df = pd.DataFrame(resp, columns=["time","open","high","low","close"])
             df["volume"] = 0
             df["time"] = pd.to_datetime(df["time"], unit="ms")
@@ -247,7 +244,7 @@ def reply(message):
 
     try:
         df = get_data(symbol_info, limit=200)
-        if df is None or len(df) < 50:
+        if df is None or len(df) < 20:
             bot.reply_to(message, "⚠️ " + str(symbol_info[1]) + " not available")
             return
 
@@ -293,12 +290,12 @@ def reply(message):
                 tp2 = entry + (atr * 2.5)
                 tp3 = entry + (atr * 4.0)
                 tp4 = entry + (atr * 6.0)
-        else:
+                else:
                 sl = entry + (atr * 1.5)
                 tp1 = entry - (atr * 1.5)
                 tp2 = entry - (atr * 2.5)
                 tp3 = entry - (atr * 4.0)
-                tp4 = entry - (atr * 6.0) 
+                tp4 = entry - (atr * 6.0)
         if not strong:
             if side_key == "buy":
                 sl = entry - (atr * 1.2)
@@ -306,7 +303,7 @@ def reply(message):
                 tp2 = entry + (atr * 2.0)
                 tp3 = entry + (atr * 3.0)
                 tp4 = entry + (atr * 4.5)
-        else:
+            else:
                 sl = entry + (atr * 1.2)
                 tp1 = entry - (atr * 1.2)
                 tp2 = entry - (atr * 2.0)
@@ -414,33 +411,12 @@ def reply(message):
             else:
                 success = 70
 
-            # السيولة والحيتان - فقط لعملات CEX
-            if symbol_info[0] == "CEX":
-                try:
-                    ticker_24h = client.get_ticker(symbol=symbol_info[1])
-                    liquidity = float(ticker_24h["quoteVolume"])
-                    liquidity_txt = "{:,.0f}".format(liquidity)
-                except:
-                    liquidity = 0
-                    liquidity_txt = "N/A"
-
-                try:
-                    trades = client.get_recent_trades(symbol=symbol_info[1], limit=500)
-                    avg_trade = liquidity / 100000 if liquidity > 0 else 1
-                    big_trades = [tr for tr in trades if float(tr["quoteQty"]) > avg_trade * 1.5]
-                    whale_count = len(big_trades)
-                except:
-                    whale_count = 0
-            else:
-                liquidity_txt = "N/A (DEX/Alpha)"
-                whale_count = "N/A"
-
             txt += "\n\n━━━━━━━━━━━━━━\n"
             txt += "🔒 ADMIN ONLY\n"
             txt += "━━━━━━━━━━━━━━\n"
             txt += "📊 نسبة النجاح: " + str(success) + "%\n"
-            txt += "💰 السيولة (24h): " + str(liquidity_txt) + " USDT\n"
-            txt += "🐋 رادار الحيتان: " + str(whale_count)
+            txt += "💰 السيولة (24h): N/A\n"
+            txt += "🐋 رادار الحيتان: N/A"
 
         with open(filename, "rb") as photo:
             bot.send_photo(message.chat.id, photo, caption=txt)
