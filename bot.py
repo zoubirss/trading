@@ -1,4 +1,4 @@
-Aimport os
+import os
 import asyncio
 import requests
 from ohlcv_router import fetch
