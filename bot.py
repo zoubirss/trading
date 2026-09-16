@@ -119,29 +119,43 @@ def find_symbol(user_input):
 def get_data(symbol_info, interval="4h", limit=200):
     source, sym = symbol_info
 
-    if source == "ALPHA":
+    if source == "ALPHA" or source == "DEX":
+        # البحث في CoinGecko On-Chain باستخدام الرمز
         try:
-            url = "https://www.binance.com/bapi/defi/v1/public/alpha-trade/klines"
-            params = {"symbol": sym, "interval": interval, "limit": limit}
-            resp = requests.get(url, params=params, timeout=15)
-            data = resp.json().get("data", [])
-            if data:
-                df = pd.DataFrame(data, columns=[
-                    "time","open","high","low","close","volume",
-                    "close_time","quote_vol","trades","taker_base","taker_quote","ignore"
-                ])
-                for c in ["open","high","low","close","volume"]:
-                    df[c] = df[c].astype(float)
-                df["time"] = pd.to_datetime(df["time"], unit="ms")
-                df.set_index("time", inplace=True)
-                return df
+            # 1. البحث عن العملة في CoinGecko On-Chain
+            search_url = "https://api.geckoterminal.com/api/v2/search/pools"
+            search_params = {"query": sym.replace("USDT", ""), "page": 1}
+            search_resp = requests.get(search_url, params=search_params, timeout=15).json()
+            
+            pools = search_resp.get("data", [])
+            if not pools:
+                return None
+            
+            # 2. اختيار التجمع الأكثر سيولة
+            best_pool = max(pools, key=lambda p: p.get("attributes", {}).get("reserve_in_usd", 0) or 0)
+            network = best_pool["relationships"]["network"]["data"]["id"]
+            pool_address = best_pool["attributes"]["address"]
+            
+            # 3. جلب شموع 4 ساعات (hourly مع aggregate=4)
+            ohlcv_url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pool_address}/ohlcv/hour"
+            ohlcv_params = {"aggregate": "4", "limit": str(limit), "currency": "usd"}
+            ohlcv_resp = requests.get(ohlcv_url, params=ohlcv_params, timeout=15).json()
+            
+            ohlcv_list = ohlcv_resp.get("data", {}).get("attributes", {}).get("ohlcv_list", [])
+            if not ohlcv_list:
+                return None
+            
+            # 4. تحويل البيانات إلى DataFrame
+            df = pd.DataFrame(ohlcv_list, columns=["time", "open", "high", "low", "close", "volume"])
+            for c in ["open", "high", "low", "close", "volume"]:
+                df[c] = df[c].astype(float)
+            df["time"] = pd.to_datetime(df["time"], unit="s")
+            df.set_index("time", inplace=True)
+            return df
         except Exception:
-            pass
-        return None
+            return None
 
-    if source == "DEX":
-        return dex_get_ohlcv(sym["network"], sym["pool"], limit)
-
+    # ============ للعملات العادية (CEX) ============
     try:
         import yfinance as yf
         base = sym.replace("USDT", "").replace("USDC", "")
@@ -149,31 +163,32 @@ def get_data(symbol_info, interval="4h", limit=200):
         ticker = yf.Ticker(yf_sym)
         hist = ticker.history(period="60d", interval="1h")
         if len(hist) >= 20:
-            df = hist[["Open","High","Low","Close","Volume"]].copy()
-            df.columns = ["open","high","low","close","volume"]
+            df = hist[["Open", "High", "Low", "Close", "Volume"]].copy()
+            df.columns = ["open", "high", "low", "close", "volume"]
             df = df.resample("4h").agg({
-                "open":"first","high":"max","low":"min","close":"last","volume":"sum"
+                "open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"
             }).dropna()
             if len(df) >= 20:
                 return df
     except Exception:
         pass
 
+    # CoinGecko العادي (احتياطي)
     try:
         base = sym.replace("USDT", "").replace("USDC", "")
         url = "https://api.coingecko.com/api/v3/coins/" + base.lower() + "/ohlc"
         params = {"vs_currency": "usd", "days": "30"}
         resp = requests.get(url, params=params, timeout=10).json()
         if resp and len(resp) >= 20:
-            df = pd.DataFrame(resp, columns=["time","open","high","low","close"])
+            df = pd.DataFrame(resp, columns=["time", "open", "high", "low", "close"])
             df["volume"] = 0
             df["time"] = pd.to_datetime(df["time"], unit="ms")
             df.set_index("time", inplace=True)
             return df
     except Exception:
         pass
-    return None
 
+    return Non
 def calc_rsi(df, period=14):
     delta = df["close"].diff()
     gain = delta.where(delta > 0, 0).rolling(period).mean()
