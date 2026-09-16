@@ -144,7 +144,25 @@ def get_data(symbol_info, interval="4h", limit=200):
     if source == "DEX":
         return dex_get_ohlcv(sym["network"], sym["pool"], limit)
 
-    # CoinGecko أولاً (لا يحجب Railway)
+    # 1. yfinance (الأقوى - يدعم كل العملات الرئيسية)
+    try:
+        import yfinance as yf
+        base = sym.replace("USDT", "").replace("USDC", "").replace("BTC", "")
+        yf_sym = base + "-USD"
+        ticker = yf.Ticker(yf_sym)
+        hist = ticker.history(period="60d", interval="1h")
+        if len(hist) >= 20:
+            df = hist[["Open","High","Low","Close","Volume"]].copy()
+            df.columns = ["open","high","low","close","volume"]
+            df = df.resample("4h").agg({
+                "open":"first","high":"max","low":"min","close":"last","volume":"sum"
+            }).dropna()
+            if len(df) >= 20:
+                return df
+    except Exception:
+        pass
+
+    # 2. CoinGecko (احتياطي)
     try:
         base = sym.replace("USDT", "").replace("USDC", "")
         url = "https://api.coingecko.com/api/v3/coins/" + base.lower() + "/ohlc"
@@ -159,7 +177,7 @@ def get_data(symbol_info, interval="4h", limit=200):
     except Exception:
         pass
 
-    # ohlcv-router ثانياً
+    # 3. ohlcv-router
     try:
         candles = asyncio.run(fetch(sym, interval=interval, limit=limit))
         if candles:
