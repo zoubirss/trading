@@ -247,7 +247,7 @@ def reply(message):
 
     try:
         df = get_data(symbol_info, limit=200)
-        if df is None or len(df) < 20:
+        if df is None or len(df) < 50:
             bot.reply_to(message, "⚠️ " + str(symbol_info[1]) + " not available")
             return
 
