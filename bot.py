@@ -265,9 +265,9 @@ def start(message):
         lang = "en"
     bot.reply_to(message, LANG[lang]["ask"])
     @bot.message_handler(func=lambda m: True)
-def reply(message):
-    if message.text and message.text.lower().strip() in ['/start', 'start', 'help', 'بدأ', '/help']:
-        lang = detect_lang(message.from_user.language_code or "en")
+    def reply(message):
+        if message.text and message.text.lower().strip() in ['/start', 'start', 'help', 'بدأ', '/help']:
+            lang = detect_lang(message.from_user.language_code or "en")
         if lang not in LANG:
             lang = "en"
         bot.reply_to(message, LANG[lang]["ask"])
