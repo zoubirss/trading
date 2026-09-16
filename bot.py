@@ -1,6 +1,7 @@
 import os
 import asyncio
 import requests
+import json
 from ohlcv_router import fetch
 import telebot
 import pandas as pd
@@ -58,10 +59,7 @@ def find_alpha_symbol(user_input):
         if sym == base:
             alpha_id = str(token.get("alphaId", ""))
             if alpha_id:
-                if alpha_id.startswith("ALPHA_"):
-                    return alpha_id + "USDT"
-                else:
-                    return "ALPHA_" + alpha_id + "USDT"
+                return alpha_id + "USDT"
     return None
 def dex_search_symbol(query):
     try:
@@ -98,80 +96,55 @@ def dex_get_ohlcv(network, pool, hours=200):
     except Exception:
         return None
 
-def get_coingecko_onchain(symbol_name, interval="4h", limit=200):
-    try:
-        search_url = "https://api.coingecko.com/api/v3/onchain/search/pools"
-        search_params = {"query": symbol_name}
-        search_resp = requests.get(search_url, params=search_params, timeout=15).json()
-        pools = search_resp.get("data", [])
-        if not pools:
-            return None
-        best_pool = max(pools, key=lambda p: p.get("attributes", {}).get("liquidity_usd", 0) or 0)
-        network = best_pool["relationships"]["network"]["data"]["id"]
-        pool_address = best_pool["attributes"]["address"]
-        ohlcv_url = f"https://api.coingecko.com/api/v3/onchain/networks/{network}/pools/{pool_address}/ohlcv/hour"
-        ohlcv_params = {"aggregate": "4", "limit": str(limit), "currency": "usd"}
-        ohlcv_resp = requests.get(ohlcv_url, params=ohlcv_params, timeout=15).json()
-        ohlcv_list = ohlcv_resp.get("data", {}).get("attributes", {}).get("ohlcv_list", [])
-        if not ohlcv_list:
-            return None
-        df = pd.DataFrame(ohlcv_list, columns=["time", "open", "high", "low", "close", "volume"])
-        for c in ["open", "high", "low", "close", "volume"]:
-            df[c] = df[c].astype(float)
-        df["time"] = pd.to_datetime(df["time"], unit="s")
-        df.set_index("time", inplace=True)
-        return df
-    except Exception:
-        return None
-
 def find_symbol(user_input):
     user_input = user_input.upper().strip()
     base = user_input.replace("USDT", "").strip()
+
+    try:
+        alpha_sym = find_alpha_symbol(user_input)
+        if alpha_sym:
+            return ("ALPHA", alpha_sym)
+    except:
+        pass
+
+    try:
+        dex_info = dex_search_symbol(base)
+        if dex_info and dex_info.get("network") and dex_info.get("pool"):
+            return ("DEX", dex_info)
+    except:
+        pass
 
     return ("CEX", base + "USDT")
 
 def get_data(symbol_info, interval="4h", limit=200):
     source, sym = symbol_info
 
-    if source == "ALPHA" or source == "DEX":
-        clean_sym = sym.replace("USDT", "").replace("ALPHA_", "")
-        if isinstance(sym, dict):
-            clean_sym = sym.get("pool", "")
-
-        onchain_df = get_coingecko_onchain(clean_sym, interval, limit)
-        if onchain_df is not None and len(onchain_df) >= 20:
-            return onchain_df
-
-        if source == "ALPHA":
-            try:
-                url = "https://www.binance.com/bapi/defi/v1/public/alpha-trade/klines"
-                params = {"symbol": sym, "interval": interval, "limit": limit}
-                resp = requests.get(url, params=params, timeout=10)
-                data = resp.json().get("data", [])
-                if data:
-                    df = pd.DataFrame(data, columns=[
-                        "time","open","high","low","close","volume",
-                        "close_time","quote_vol","trades","taker_base","taker_quote","ignore"
-                    ])
-                    for c in ["open","high","low","close","volume"]:
-                        df[c] = df[c].astype(float)
-                    df["time"] = pd.to_datetime(df["time"], unit="ms")
-                    df.set_index("time", inplace=True)
-                    return df
-            except Exception:
-                pass
-            return None
-
-        if source == "DEX":
-            try:
-                return dex_get_ohlcv(sym["network"], sym["pool"], limit)
-            except Exception:
-                pass
+    if source == "ALPHA":
+        try:
+            url = "https://www.binance.com/bapi/defi/v1/public/alpha-trade/klines"
+            params = {"symbol": sym, "interval": interval, "limit": limit}
+            resp = requests.get(url, params=params, timeout=15)
+            data = resp.json().get("data", [])
+            if data:
+                df = pd.DataFrame(data, columns=[
+                    "time","open","high","low","close","volume",
+                    "close_time","quote_vol","trades","taker_base","taker_quote","ignore"
+                ])
+                for c in ["open","high","low","close","volume"]:
+                    df[c] = df[c].astype(float)
+                df["time"] = pd.to_datetime(df["time"], unit="ms")
+                df.set_index("time", inplace=True)
+                return df
+        except Exception:
+            pass
         return None
+
+    if source == "DEX":
+        return dex_get_ohlcv(sym["network"], sym["pool"], limit)
 
     try:
         import yfinance as yf
-        base = sym.replace("USDT", "").replace("USDC", "").replace("BTC", "")
+        base = sym.replace("USDT", "").replace("USDC", "")
         yf_sym = base + "-USD"
         ticker = yf.Ticker(yf_sym)
         hist = ticker.history(period="60d", interval="1h")
@@ -199,23 +172,6 @@ def get_data(symbol_info, interval="4h", limit=200):
             return df
     except Exception:
         pass
-
-    try:
-        candles = asyncio.run(fetch(sym, interval=interval, limit=limit))
-        if candles:
-            df = pd.DataFrame([{
-                "time": pd.to_datetime(c.time),
-                "open": float(c.open),
-                "high": float(c.high),
-                "low": float(c.low),
-                "close": float(c.close),
-                "volume": float(c.volume)
-            } for c in candles])
-            df.set_index("time", inplace=True)
-            return df
-    except Exception:
-        pass
-
     return None
 
 def calc_rsi(df, period=14):
@@ -264,10 +220,11 @@ def start(message):
     if lang not in LANG:
         lang = "en"
     bot.reply_to(message, LANG[lang]["ask"])
-    @bot.message_handler(func=lambda m: True)
-    def reply(message):
-        if message.text and message.text.lower().strip() in ['/start', 'start', 'help', 'بدأ', '/help']:
-            lang = detect_lang(message.from_user.language_code or "en")
+
+@bot.message_handler(func=lambda m: True)
+def reply(message):
+    if message.text and message.text.lower().strip() in ['/start', 'start', 'help', 'بدأ', '/help']:
+        lang = detect_lang(message.from_user.language_code or "en")
         if lang not in LANG:
             lang = "en"
         bot.reply_to(message, LANG[lang]["ask"])
@@ -330,7 +287,7 @@ def start(message):
                 tp2 = entry + (atr * 2.5)
                 tp3 = entry + (atr * 4.0)
                 tp4 = entry + (atr * 6.0)
-            else:
+                else:
                 sl = entry + (atr * 1.5)
                 tp1 = entry - (atr * 1.5)
                 tp2 = entry - (atr * 2.5)
@@ -374,6 +331,7 @@ def start(message):
 
         safe_name = str(symbol_info[1]).replace("/", "_").replace(":", "_")
         filename = "chart_" + safe_name + ".png"
+
         mc = mpf.make_marketcolors(up="#26a69a", down="#ef5350", edge="inherit", wick="inherit", volume="in")
         style = mpf.make_mpf_style(
             marketcolors=mc, gridstyle=":", gridcolor="#dddddd",
@@ -416,7 +374,6 @@ def start(message):
 
         fig.savefig(filename, dpi=110, bbox_inches="tight", facecolor="white")
         plt.close(fig)
-
         txt = t["report"] + " - " + safe_name + "\n"
         txt += t["frame"] + "\n"
         txt += t[side_key] + "\n\n"
@@ -462,4 +419,5 @@ def start(message):
             bot.send_photo(message.chat.id, photo, caption=txt)
     except Exception as e:
         bot.reply_to(message, "Error: " + str(e)[:200])
-        bot.infinity_polling()
+
+bot.infinity_polling()
