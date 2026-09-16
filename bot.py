@@ -115,23 +115,25 @@ def find_symbol(user_input):
         pass
 
     return ("CEX", base + "USDT")
-
 def get_data(symbol_info, interval="4h", limit=200):
     source, sym = symbol_info
 
     if source == "ALPHA" or source == "DEX":
-        # البحث في CoinGecko On-Chain باستخدام الرمز
+        clean_sym = sym.replace("USDT", "").replace("ALPHA_", "")
+        if isinstance(sym, dict):
+            clean_sym = sym.get("pool", "")
+
         try:
-            # 1. البحث عن العملة في CoinGecko On-Chain
+            # 1. البحث عن العملة (SIREN, AKE, LAB...) في GeckoTerminal
             search_url = "https://api.geckoterminal.com/api/v2/search/pools"
-            search_params = {"query": sym.replace("USDT", ""), "page": 1}
+            search_params = {"query": clean_sym, "page": 1}
             search_resp = requests.get(search_url, params=search_params, timeout=15).json()
             
             pools = search_resp.get("data", [])
             if not pools:
                 return None
             
-            # 2. اختيار التجمع الأكثر سيولة
+            # 2. اختيار التجمع (Pool) الأكثر سيولة
             best_pool = max(pools, key=lambda p: p.get("attributes", {}).get("reserve_in_usd", 0) or 0)
             network = best_pool["relationships"]["network"]["data"]["id"]
             pool_address = best_pool["attributes"]["address"]
@@ -145,7 +147,7 @@ def get_data(symbol_info, interval="4h", limit=200):
             if not ohlcv_list:
                 return None
             
-            # 4. تحويل البيانات إلى DataFrame
+            # 4. تحويل البيانات
             df = pd.DataFrame(ohlcv_list, columns=["time", "open", "high", "low", "close", "volume"])
             for c in ["open", "high", "low", "close", "volume"]:
                 df[c] = df[c].astype(float)
@@ -173,7 +175,6 @@ def get_data(symbol_info, interval="4h", limit=200):
     except Exception:
         pass
 
-    # CoinGecko العادي (احتياطي)
     try:
         base = sym.replace("USDT", "").replace("USDC", "")
         url = "https://api.coingecko.com/api/v3/coins/" + base.lower() + "/ohlc"
@@ -188,7 +189,7 @@ def get_data(symbol_info, interval="4h", limit=200):
     except Exception:
         pass
 
-    return Non
+    return None
 def calc_rsi(df, period=14):
     delta = df["close"].diff()
     gain = delta.where(delta > 0, 0).rolling(period).mean()
