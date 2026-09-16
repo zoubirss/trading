@@ -1,6 +1,2 @@
 pyTelegramBotAPI
-pandas
-numpy
-mplfinance
-matplotlib
 requests
